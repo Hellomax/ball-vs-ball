@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#090b12" />
+  <title>Ball vs Ball: Fusion Arena</title>
+  <meta name="description" content="Mobile-first 60fps auto-battle physics arena with 1v1, 2v2, Fusion Mode, Sandbox, Gacha Roll, and 17 unique weapon balls." />
+  <meta property="og:title" content="Ball vs Ball: Fusion Arena" />
+  <meta property="og:description" content="Pick your balls, fuse dual-weapon hybrids, clash in a 60fps physics arena, and roll Mythics!" />
+  <meta property="og:image" content="./og.png" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- TOP HUD HEADER -->
+    <header class="top-bar" role="banner">
+      <div class="brand">
+        <span class="brand-orb" aria-hidden="true"></span>
+        <div class="brand-text">
+          <span class="brand-title">BALL<span class="brand-x">×</span>BALL</span>
+          <span class="brand-sub">FUSION ARENA</span>
+        </div>
+      </div>
+
+      <div class="hud-pills">
+        <div class="pill pill-streak" title="Current Win Streak" aria-label="Win Streak">
+          <span class="pill-ico" aria-hidden="true">🔥</span>
+          <span id="hud-streak" class="num">0</span>
+        </div>
+        <div class="pill pill-coins" title="Coins" aria-label="Coins">
+          <span class="coin-dot" aria-hidden="true"></span>
+          <span id="hud-coins" class="num">350</span>
+        </div>
+        <button type="button" id="btn-codes" class="icon-btn" aria-label="Redeem Codes" title="Redeem Codes">🎁</button>
+        <button type="button" id="btn-mute" class="icon-btn" aria-label="Toggle Sound" title="Toggle Sound">🔊</button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-area" role="main">
+      <!-- ================= ARENA WORKSPACE (Battle / Fusion / Sandbox) ================= -->
+      <section id="view-arena" class="view view-arena active" aria-label="Battle Arena">
+        <!-- LEFT / TOP: ARENA CANVAS + LIVE COMBAT BAR -->
+        <div class="arena-column">
+          <div class="battle-hud-bar">
+            <div class="hud-team hud-team-a" id="hud-team-a">
+              <span class="team-dot team-a-dot"></span>
+              <span class="team-label" id="hud-name-a">Ready</span>
+              <span class="team-hp num" id="hud-hp-a">--</span>
+            </div>
+            <div class="hud-center">
+              <span class="timer-badge num" id="hud-timer">0:00</span>
+              <button type="button" id="btn-speed" class="speed-btn" aria-label="Toggle Battle Speed">1x</button>
+            </div>
+            <div class="hud-team hud-team-b" id="hud-team-b">
+              <span class="team-hp num" id="hud-hp-b">--</span>
+              <span class="team-label" id="hud-name-b">AI</span>
+              <span class="team-dot team-b-dot"></span>
+            </div>
+          </div>
+
+          <div class="canvas-stage">
+            <canvas id="arena-canvas" width="480" height="480" aria-label="Ball vs Ball Physics Arena"></canvas>
+
+            <!-- Idle Hint Overlay (when not fighting) -->
+            <div id="stage-idle-badge" class="stage-idle-badge">
+              <span id="stage-idle-text">PICK YOUR FIGHTER TO START</span>
+            </div>
+
+            <!-- Match Result Overlay -->
+            <div id="result-overlay" class="result-overlay hidden" role="dialog" aria-live="polite">
+              <div class="result-card">
+                <div id="result-tag" class="result-tag">VICTORY</div>
+                <h2 id="result-title" class="result-title">YOU WON!</h2>
+                <p id="result-sub" class="result-sub">Enemy defeated in 14.2s</p>
+                <div id="result-reward" class="result-reward">+65 Coins</div>
+                <div class="result-stats" id="result-stats"></div>
+                <div class="result-actions">
+                  <button type="button" id="btn-next-round" class="btn btn-primary">Next Round</button>
+                  <button type="button" id="btn-rematch" class="btn btn-ghost">Rematch</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- LIVE FIGHTER SCALING STRIP (visible during fight) -->
+          <div id="live-strip" class="live-strip hidden">
+            <div id="live-fighters" class="live-fighters"></div>
+            <button type="button" id="btn-abort-match" class="btn btn-mini btn-ghost">Back to Draft</button>
+          </div>
+        </div>
+
+        <!-- RIGHT / BOTTOM: MODE CONTROLS & DRAFT PICKER -->
+        <div class="controls-column" id="controls-column">
+          <!-- Battle Mode Panel (1v1 / 2v2) -->
+          <div id="panel-battle" class="mode-panel">
+            <div class="panel-header-row">
+              <div class="segmented" role="tablist" aria-label="Battle Format">
+                <button type="button" class="seg-btn active" data-battle-sub="1v1" role="tab" aria-selected="true">1v1 Battle</button>
+                <button type="button" class="seg-btn" data-battle-sub="2v2" role="tab" aria-selected="false">2v2 Brawl</button>
+              </div>
+              <div class="segmented segmented-sm" role="tablist" aria-label="Picker Source">
+                <button type="button" class="seg-btn active" data-source="draft" role="tab" aria-selected="true">Draft 3</button>
+                <button type="button" class="seg-btn" data-source="collection" role="tab" aria-selected="false">My Balls</button>
+              </div>
+            </div>
+
+            <div class="draft-meta-row">
+              <span id="battle-instruction" class="helper-text">Pick 1 of 3 random balls (any rarity!)</span>
+              <button type="button" id="btn-reroll-battle" class="btn btn-mini btn-accent">🎲 Reroll (1 Free)</button>
+            </div>
+
+            <div id="battle-cards" class="draft-grid"></div>
+
+            <div id="battle-team-bar" class="team-slots hidden">
+              <div class="slot-pill" id="slot-2v2-0">Slot 1: —</div>
+              <div class="slot-pill" id="slot-2v2-1">Slot 2: —</div>
+            </div>
+
+            <button type="button" id="btn-fight-battle" class="btn btn-primary btn-block btn-lg" disabled>
+              ⚔️ FIGHT!
+            </button>
+          </div>
+
+          <!-- Fusion Mode Panel -->
+          <div id="panel-fusion" class="mode-panel hidden">
+            <div class="panel-header-row">
+              <div>
+                <h2 class="panel-title fusion-glow-text">⚡ FUSION LAB</h2>
+                <p class="helper-text">Combine 2 balls into a dual-weapon hybrid vs a Fused Boss!</p>
+              </div>
+              <div class="segmented segmented-sm">
+                <button type="button" class="seg-btn active" data-fusion-src="draft">Draft</button>
+                <button type="button" class="seg-btn" data-fusion-src="collection">Owned</button>
+              </div>
+            </div>
+
+            <div class="fusion-slots-bar">
+              <div class="fusion-slot" id="fusion-slot-0">
+                <span class="slot-tag">BALL A</span>
+                <strong id="fusion-slot-0-name">Tap below</strong>
+              </div>
+              <div class="fusion-plus" aria-hidden="true">+</div>
+              <div class="fusion-slot" id="fusion-slot-1">
+                <span class="slot-tag">BALL B</span>
+                <strong id="fusion-slot-1-name">Tap below</strong>
+              </div>
+            </div>
+
+            <div class="draft-meta-row">
+              <span id="fusion-preview-label" class="helper-text">Pick 2 balls to fuse</span>
+              <button type="button" id="btn-reroll-fusion" class="btn btn-mini btn-accent">🎲 Reroll (1 Free)</button>
+            </div>
+
+            <div id="fusion-cards" class="draft-grid draft-grid-4"></div>
+
+            <button type="button" id="btn-fight-fusion" class="btn btn-fusion btn-block btn-lg" disabled>
+              ⚡ FUSE &amp; FIGHT BOSS!
+            </button>
+          </div>
+
+          <!-- Sandbox Mode Panel -->
+          <div id="panel-sandbox" class="mode-panel hidden">
+            <div class="panel-header-row">
+              <div>
+                <h2 class="panel-title">🧪 SANDBOX LAB</h2>
+                <p class="helper-text">Test ANY ball or Fusion matchup freely!</p>
+              </div>
+              <button type="button" id="btn-sandbox-random" class="btn btn-mini btn-accent">🎲 Randomize</button>
+            </div>
+
+            <div class="sandbox-sides">
+              <div class="sandbox-box sandbox-blue">
+                <div class="sandbox-box-head">
+                  <span class="team-dot team-a-dot"></span>
+                  <strong>BLUE SIDE</strong>
+                  <label class="fuse-toggle">
+                    <input type="checkbox" id="sb-fuse-a" />
+                    <span>Fuse 2</span>
+                  </label>
+                </div>
+                <select id="sb-a1" class="select-input" aria-label="Blue Fighter Ball 1"></select>
+                <select id="sb-a2" class="select-input hidden" aria-label="Blue Fighter Ball 2"></select>
+              </div>
+
+              <div class="sandbox-box sandbox-red">
+                <div class="sandbox-box-head">
+                  <span class="team-dot team-b-dot"></span>
+                  <strong>RED SIDE</strong>
+                  <label class="fuse-toggle">
+                    <input type="checkbox" id="sb-fuse-b" />
+                    <span>Fuse 2</span>
+                  </label>
+                </div>
+                <select id="sb-b1" class="select-input" aria-label="Red Fighter Ball 1"></select>
+                <select id="sb-b2" class="select-input hidden" aria-label="Red Fighter Ball 2"></select>
+              </div>
+            </div>
+
+            <button type="button" id="btn-fight-sandbox" class="btn btn-primary btn-block btn-lg">
+              🧪 LAUNCH SANDBOX FIGHT
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= ROLL (GACHA) VIEW ================= -->
+      <section id="view-roll" class="view view-roll hidden" aria-label="Gacha Roll">
+        <div class="section-shell">
+          <div class="gacha-hero">
+            <div class="gacha-badge">GACHA CAPSULE</div>
+            <h1 class="gacha-title">UNLOCK NEW BALLS</h1>
+            <p class="gacha-sub">Duplicates level up your ball (+5% HP &amp; DMG) AND refund bonus coins!</p>
+            <div class="pity-bar-row">
+              <span class="pity-chip" id="pity-epic">Epic+ Pity: 0 / 5</span>
+              <span class="pity-chip pity-gold" id="pity-leg">Legendary+ Pity: 0 / 12</span>
+            </div>
+          </div>
+
+          <div id="roll-stage" class="roll-stage">
+            <div class="roll-placeholder">
+              <div class="capsule-orb" aria-hidden="true">⚡</div>
+              <p>Tap Roll to summon fighters across all 5 rarities!</p>
+            </div>
+          </div>
+
+          <div class="roll-buttons">
+            <button type="button" id="btn-roll-1" class="btn btn-primary btn-roll">
+              <span>Roll 1×</span>
+              <span class="btn-cost">100 Coins</span>
+            </button>
+            <button type="button" id="btn-roll-3" class="btn btn-fusion btn-roll">
+              <span>Roll 3× <small>(Save 30!)</small></span>
+              <span class="btn-cost">270 Coins</span>
+            </button>
+          </div>
+
+          <div class="odds-strip" aria-label="Drop Rates">
+            <span class="odds-pill r-common">Common 46%</span>
+            <span class="odds-pill r-rare">Rare 28%</span>
+            <span class="odds-pill r-epic">Epic 15%</span>
+            <span class="odds-pill r-legendary">Legendary 8%</span>
+            <span class="odds-pill r-mythic">Mythic 3%</span>
+          </div>
+
+          <div class="codes-inline-banner">
+            <div>
+              <strong>Want free coins?</strong>
+              <p class="helper-text">Redeem secret creator codes for bonus coin drops.</p>
+            </div>
+            <button type="button" id="btn-open-codes-inline" class="btn btn-accent btn-mini">🎁 Codes</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= COLLECTION VIEW ================= -->
+      <section id="view-collection" class="view view-collection hidden" aria-label="Ball Collection">
+        <div class="section-shell">
+          <div class="collection-header">
+            <div>
+              <h1 class="section-title">BALL ROSTER</h1>
+              <p class="helper-text" id="collection-count">Unlocked 4 / 17</p>
+            </div>
+            <div class="filter-pills" id="collection-filters">
+              <button type="button" class="filter-btn active" data-filter="all">All</button>
+              <button type="button" class="filter-btn" data-filter="common">Common</button>
+              <button type="button" class="filter-btn" data-filter="rare">Rare</button>
+              <button type="button" class="filter-btn" data-filter="epic">Epic</button>
+              <button type="button" class="filter-btn" data-filter="legendary">Legendary</button>
+              <button type="button" class="filter-btn" data-filter="mythic">Mythic</button>
+            </div>
+          </div>
+
+          <div id="collection-grid" class="collection-grid"></div>
+        </div>
+      </section>
+    </main>
+
+    <!-- BOTTOM NAVIGATION BAR -->
+    <nav class="bottom-nav" role="navigation" aria-label="Game Modes">
+      <button type="button" class="nav-btn active" data-tab="battle" aria-current="page">
+        <span class="nav-ico" aria-hidden="true">⚔️</span>
+        <span class="nav-lbl">Battle</span>
+      </button>
+      <button type="button" class="nav-btn" data-tab="fusion">
+        <span class="nav-ico" aria-hidden="true">⚡</span>
+        <span class="nav-lbl">Fusion</span>
+      </button>
+      <button type="button" class="nav-btn" data-tab="sandbox">
+        <span class="nav-ico" aria-hidden="true">🧪</span>
+        <span class="nav-lbl">Sandbox</span>
+      </button>
+      <button type="button" class="nav-btn" data-tab="roll">
+        <span class="nav-ico" aria-hidden="true">🎰</span>
+        <span class="nav-lbl">Roll</span>
+      </button>
+      <button type="button" class="nav-btn" data-tab="collection">
+        <span class="nav-ico" aria-hidden="true">📦</span>
+        <span class="nav-lbl">Balls</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- REDEEM CODES MODAL -->
+  <div id="modal-codes" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="codes-modal-title">
+    <div class="modal-backdrop" data-close-modal="modal-codes"></div>
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="codes-modal-title">🎁 REDEEM CODES</h2>
+        <button type="button" class="icon-btn" data-close-modal="modal-codes" aria-label="Close">✕</button>
+      </div>
+      <p class="helper-text">Enter a code for instant free Coins (saved automatically).</p>
+      <form id="codes-form" class="codes-form">
+        <input type="text" id="code-input" class="text-input" placeholder="e.g. JARVIS" maxlength="20" autocomplete="off" aria-label="Redeem Code" />
+        <button type="submit" class="btn btn-primary">Claim</button>
+      </form>
+      <div id="code-feedback" class="code-feedback" aria-live="polite"></div>
+      <div class="redeemed-list-wrap">
+        <span class="slot-tag">CLAIMED CODES</span>
+        <div id="redeemed-list" class="redeemed-chips"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BALL DETAIL MODAL -->
+  <div id="modal-ball" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="ball-modal-name">
+    <div class="modal-backdrop" data-close-modal="modal-ball"></div>
+    <div class="modal-card" id="ball-modal-body"></div>
+  </div>
+
+  <script defer src="./roster.js"></script>
+  <script defer src="./audio.js"></script>
+  <script defer src="./arena.js"></script>
+  <script defer src="./app.js"></script>
+</body>
+</html>
